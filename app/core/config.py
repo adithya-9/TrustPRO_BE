@@ -51,6 +51,25 @@ class Settings(BaseSettings):
     # the office network. Empty = this machine's network address on the UI port.
     public_app_url: str = ""
     ui_port: int = 5173
+    # Where the recruiter login for each finished report is emailed (comma-separated). Empty = only
+    # printed in the server terminal.
+    recruiter_email: str = ""
+
+    # ---------------- Outgoing email (same providers as tl-core: AZURE | SENDGRID, plus SMTP) ----
+    mail_provider: str = "none"          # azure | sendgrid | smtp | none
+    mail_from: str = ""                  # sender address (an Azure/Office 365 mailbox for azure)
+    azure_tenant_id: str = ""
+    azure_client_id: str = ""
+    azure_client_secret: str = ""
+    azure_scope: str = "https://graph.microsoft.com/.default"
+    azure_token_url: str = "https://login.microsoftonline.com/{tenantId}/oauth2/v2.0/token"
+    azure_graph_url: str = "https://graph.microsoft.com/v1.0/users/{fromEmail}/sendMail"
+    sendgrid_api_key: str = ""
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_username: str = ""
+    smtp_password: str = ""
+    smtp_starttls: bool = True
 
     # ---------------- AI: general ----------------
     # ONNX Runtime execution providers in priority order. CPU is always appended as fallback,

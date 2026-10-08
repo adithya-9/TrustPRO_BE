@@ -101,11 +101,14 @@ def run_report(report_id: int) -> None:
 
 
 def _issue_recruiter_access(report_id: int) -> None:
-    """A recruiter login for this report only, printed in the terminal. Never fails the report."""
+    """A recruiter login for this report only: printed in the terminal and emailed to
+    RECRUITER_EMAIL when set. Never fails the report."""
     try:
         with session_scope() as db:
             access = recruiter_service.issue_access(db, report_id)
         recruiter_service.print_access(access)
+        if recruiter_service.email_access(access):
+            log.info("Recruiter login for report %s emailed", report_id)
     except Exception:
         log.exception("Recruiter access could not be created report_id=%s", report_id)
 

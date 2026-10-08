@@ -42,7 +42,10 @@ def main() -> int:
             if report is None or report.status != ReportStatus.COMPLETED:
                 print(f"Report {report_id}: not found or not completed - skipped.")
                 continue
-            recruiter_service.print_access(recruiter_service.issue_access(db, report_id))
+            access = recruiter_service.issue_access(db, report_id)
+            recruiter_service.print_access(access)
+            if recruiter_service.email_access(access):
+                print(f"Report {report_id}: login emailed to RECRUITER_EMAIL.")
     return 0
 
 

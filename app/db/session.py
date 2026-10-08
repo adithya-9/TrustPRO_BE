@@ -15,7 +15,10 @@ engine = create_engine(
     _settings.database_url,
     pool_size=_settings.db_pool_size,
     max_overflow=5,
-    pool_pre_ping=True,
+    # No ping before every query: against a remote database (Neon) each ping is a full network
+    # round trip. Connections are recycled instead, before Neon's ~5 minute idle cut-off.
+    pool_pre_ping=False,
+    pool_recycle=240,
     future=True,
 )
 SessionLocal = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)

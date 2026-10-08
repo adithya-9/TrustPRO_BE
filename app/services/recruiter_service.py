@@ -10,6 +10,8 @@ from __future__ import annotations
 import logging
 import secrets
 import socket
+from html import escape
+from urllib.parse import urlencode
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -22,7 +24,7 @@ from app.core.config import get_settings
 from app.core.errors import AppError, Conflict, NotAuthenticated, NotFound
 from app.db.models import (InterviewReport, ReportAccess, ReportStatus, User, UserSession, UserType,
                            utcnow)
-from app.services import auth_service
+from app.services import auth_service, mail_service
 from app.services.storage import get_storage
 
 log = logging.getLogger(__name__)
@@ -39,6 +41,13 @@ class IssuedAccess:
     password: str
     expires_at: datetime
     login_url: str
+    candidate_name: str = "Candidate"
+
+    @property
+    def autofill_url(self) -> str:
+        """Login link that fills in the login ID and password. They travel in the URL fragment
+        (after #), which browsers never send to a server, so they stay out of server logs."""
+        return f"{self.login_url}#" + urlencode({"login": self.login_id, "password": self.password})
 
 
 def _random_login_id() -> str:
@@ -81,7 +90,36 @@ def issue_access(db: Session, report_id: int) -> IssuedAccess:
     db.commit()
     log.info("Recruiter access issued report_id=%s user_id=%s", report_id, user.user_id)
     return IssuedAccess(report_id=report_id, login_id=login_id, password=password, expires_at=expires_at,
-                        login_url=f"{app_base_url()}/recruiter/login")
+                        login_url=f"{app_base_url()}/recruiter/login",
+                        candidate_name=report.interview.candidate.full_name or "Candidate")
+
+
+def email_access(access: IssuedAccess) -> bool:
+    """Email the recruiter login to RECRUITER_EMAIL. False when email is off or failed."""
+    to = [a for a in get_settings().recruiter_email.split(",") if a.strip()]
+    if not to:
+        return False
+    name = escape(access.candidate_name)
+    until = f"{access.expires_at:%d %b %Y %H:%M} UTC"
+    link = escape(access.autofill_url, quote=True)
+    html = f"""<div style="font-family:Segoe UI,Arial,sans-serif;color:#172033;max-width:560px">
+  <h2 style="margin:0 0 8px">Assessment report ready: {name}</h2>
+  <p style="color:#4b5563">The TrustPRO report for <b>{name}</b> (report {access.report_id}) is ready.
+     The button opens the report login with your details already filled in.</p>
+  <p style="margin:24px 0"><a href="{link}" style="background:#2f5fe0;color:#fff;padding:12px 22px;
+     border-radius:10px;text-decoration:none;font-weight:600">Generate Report</a></p>
+  <table style="font-size:14px;border-collapse:collapse">
+    <tr><td style="padding:4px 12px 4px 0;color:#6b7280">Login ID</td><td><b>{escape(access.login_id)}</b></td></tr>
+    <tr><td style="padding:4px 12px 4px 0;color:#6b7280">Password</td><td><b>{escape(access.password)}</b></td></tr>
+    <tr><td style="padding:4px 12px 4px 0;color:#6b7280">Valid until</td><td>{until}</td></tr>
+  </table>
+  <p style="color:#6b7280;font-size:12px;margin-top:24px">This login opens only this candidate's report.
+     Do not forward this email.</p>
+</div>"""
+    text = (f"The TrustPRO report for {access.candidate_name} (report {access.report_id}) is ready.\n\n"
+            f"Open: {access.autofill_url}\nLogin ID: {access.login_id}\nPassword: {access.password}\n"
+            f"Valid until {until}\n")
+    return mail_service.send_mail(to, f"TrustPRO report ready: {access.candidate_name}", html, text)
 
 
 def print_access(access: IssuedAccess) -> None:

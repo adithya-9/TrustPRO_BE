@@ -199,3 +199,24 @@ def test_id_photo_similarity_has_an_inconclusive_band():
     assert id_photo_label(0.25) == "INCONCLUSIVE"
     assert id_photo_label(0.12) == "NOT_CONSISTENT"
     assert id_photo_label(None) == "UNAVAILABLE"
+
+
+def test_recruiter_email_has_autofill_link_and_goes_to_recruiter(monkeypatch):
+    from datetime import datetime
+    from urllib.parse import parse_qs, urlsplit
+
+    from app.core.config import get_settings
+    from app.services import mail_service, recruiter_service
+
+    access = recruiter_service.IssuedAccess(7, "rec-ab12cd34@trustpro.local", "Ab3d-Ef5h-Jk7m", datetime(2026, 10, 15),
+                                            "https://ui.example/recruiter/login", "Ravi Kumar")
+    link = urlsplit(access.autofill_url)
+    assert link.query == "" and parse_qs(link.fragment) == {"login": [access.login_id], "password": [access.password]}
+
+    sent = {}
+    monkeypatch.setattr(mail_service, "send_mail", lambda to, subject, html, text: sent.update(to=to, html=html) or True)
+    monkeypatch.setattr(get_settings(), "recruiter_email", "")
+    assert recruiter_service.email_access(access) is False and not sent        # no address: nothing sent
+    monkeypatch.setattr(get_settings(), "recruiter_email", "hr@example.com, lead@example.com")
+    assert recruiter_service.email_access(access) is True
+    assert sent["to"] == ["hr@example.com", " lead@example.com"] and "Generate Report" in sent["html"]
