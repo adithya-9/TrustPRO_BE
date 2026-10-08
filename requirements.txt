@@ -1,0 +1,36 @@
+# TrustPRO backend - Python 3.11
+#
+#   pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+#   pip install -r requirements.txt
+#   pip install --force-reinstall --no-deps opencv-contrib-python==5.0.0.93
+#
+# The last line matters: rapidocr and ultralytics depend on opencv-python. Both install into
+# the same cv2 package, so the contrib build (a superset) must be installed last.
+
+# --- web / API -------------------------------------------------------------
+fastapi==0.142.2            # async API + native WebSockets for the live monitor, OpenAPI docs
+uvicorn[standard]==0.54.0   # ASGI server (includes the websockets implementation)
+python-multipart==0.0.32    # multipart uploads (photos, ID images)
+pydantic-settings==2.15.0   # configuration from environment variables / .env
+
+# --- database --------------------------------------------------------------
+SQLAlchemy==2.1.1           # ORM / parameterised queries (no string-built SQL)
+psycopg[binary]==3.3.6      # PostgreSQL driver
+alembic==1.20.0             # reproducible schema migrations
+
+# --- security --------------------------------------------------------------
+argon2-cffi==25.1.0         # Argon2id password hashing
+
+# --- AI / vision (all CPU) ---------------------------------------------------
+numpy==2.4.6
+opencv-contrib-python==5.0.0.93  # decoding, YuNet face detector, SFace, video I/O (bundled FFmpeg)
+onnxruntime==1.30.0         # runs ArcFace (faces) and the D-FINE fallback; CPU by default, GPU optional
+rapidocr==3.9.2             # PP-OCRv5 text recognition on ONNX Runtime (government ID)
+rapidfuzz==3.14.6           # fuzzy matching of names read from the ID
+ultralytics==8.4.173        # YOLO11m environmental anomalies (needs torch, CPU build - see above)
+av==18.1.0                  # PyAV: decodes the WebM recording while it is still uploading (live analysis)
+openvino==2026.4.1          # runs the OpenVINO export of YOLO11m (scripts/export_environment_model.py), ~4x faster on CPU
+
+# --- tests -----------------------------------------------------------------
+pytest==9.1.1
+httpx==0.28.1               # FastAPI TestClient

@@ -1,0 +1,13 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.env
+storage/
+models/*
+!models/.gitkeep
+*.log
+
+# local-only data: never commit
+Example_Videos/
+kernel.errors.txt
