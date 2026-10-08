@@ -10,7 +10,7 @@ import sys
 from pathlib import Path
 
 from alembic import context
-from sqlalchemy import create_engine, pool
+from sqlalchemy import create_engine, pool, text
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -34,6 +34,9 @@ def run_migrations_offline() -> None:
 def run_migrations_online() -> None:
     engine = create_engine(settings.database_url, poolclass=pool.NullPool)
     with engine.connect() as connection:
+        # A fresh database (e.g. Neon) has no schema yet; the migrations expect it to exist.
+        connection.execute(text(f'CREATE SCHEMA IF NOT EXISTS "{settings.db_schema}"'))
+        connection.commit()
         context.configure(
             connection=connection,
             version_table=VERSION_TABLE,

@@ -22,8 +22,25 @@ configure_logging(settings.log_level)
 log = logging.getLogger("trustpro")
 
 
+def _download_missing_models() -> None:
+    s = settings
+    needed = [s.models_dir / "face_detection_yunet_2023mar.onnx", s.models_dir / "arcface_w600k_r50.onnx",
+              s.models_dir / s.environment_model]
+    if not s.auto_download_models or all(p.exists() for p in needed):
+        return
+    log.info("Model files missing - downloading them (first start can take a few minutes)")
+    from scripts.download_models import main as download_models
+
+    download_models()
+
+
 def _warm_models() -> None:
-    """Load models in the background so the first request does not pay the start-up cost."""
+    """Download missing model files, then load models in the background so the first request
+    does not pay the start-up cost."""
+    try:
+        _download_missing_models()
+    except BaseException:  # noqa: BLE001 - SystemExit from a checksum failure must not kill the server
+        log.exception("Model download failed; analysis needs the files in %s", settings.models_dir)
     from app.ai.face import get_face_engine
     from app.ai.ocr import get_ocr_engine
     from app.pipeline.environment import get_environment_model

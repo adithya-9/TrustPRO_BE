@@ -1,3 +1,13 @@
+---
+title: TrustPRO API
+emoji: 🛡️
+colorFrom: blue
+colorTo: green
+sdk: docker
+app_port: 7860
+pinned: false
+---
+
 # TrustPRO backend
 
 **TrustPRO - AI Interview Protector**, a Trustmate product. Python API for candidate

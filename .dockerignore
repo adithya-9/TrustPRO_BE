@@ -1,0 +1,12 @@
+.venv/
+.env
+.git/
+__pycache__/
+*.pyc
+.pytest_cache/
+storage/
+models/*
+!models/.gitkeep
+Example_Videos/
+kernel.errors.txt
+*.log

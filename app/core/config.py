@@ -29,7 +29,11 @@ class Settings(BaseSettings):
     # ---------------- Storage ----------------
     storage_dir: Path = BACKEND_ROOT / "storage"
     models_dir: Path = BACKEND_ROOT / "models"
-    max_image_bytes: int = 8 * 1024 * 1024
+    # Download missing model files at start-up (scripts/download_models.py). Needed on hosts
+    # whose disk starts empty, such as Hugging Face Spaces.
+    auto_download_models: bool = True
+    # 4 MB: the hosted UI proxies uploads through Vercel, which limits request bodies to ~4.5 MB.
+    max_image_bytes: int = 4 * 1024 * 1024
     max_video_bytes: int = 2 * 1024 * 1024 * 1024
     max_video_chunk_bytes: int = 16 * 1024 * 1024
 
