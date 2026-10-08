@@ -7,13 +7,13 @@ from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from starlette.concurrency import run_in_threadpool
 
-from app.api.deps import current_user
+from app.api.deps import current_user, session_token
 from app.core.config import get_settings
 from app.core.errors import InvalidUpload, NotFound
 from app.db.models import RecordingStatus, User
 from app.db.session import get_db
 from app.schemas.interview import ChunkAck, EndInterviewRequest, InterviewOut
-from app.services import interview_service
+from app.services import chunk_upload, interview_service
 from app.services.storage import get_storage
 
 log = logging.getLogger(__name__)
@@ -43,8 +43,7 @@ def start_interview(interview_id: int, user: User = Depends(current_user), db: S
 
 @router.put("/{interview_id}/recording/chunks/{seq}", response_model=ChunkAck,
             summary="Append the next recording chunk (raw WebM bytes)")
-async def upload_chunk(interview_id: int, seq: int, request: Request, user: User = Depends(current_user),
-                       db: Session = Depends(get_db)) -> ChunkAck:
+async def upload_chunk(interview_id: int, seq: int, request: Request) -> ChunkAck:
     if seq < 0:
         raise InvalidUpload("Invalid chunk number.")
     limit = get_settings().max_video_chunk_bytes
@@ -55,8 +54,12 @@ async def upload_chunk(interview_id: int, seq: int, request: Request, user: User
             raise InvalidUpload("Recording chunk is too large.", code="CHUNK_TOO_LARGE")
 
     def store() -> tuple[int, int]:
-        interview = interview_service.get_owned_interview(db, user, interview_id)
-        return interview_service.append_chunk(db, interview, seq, bytes(data))
+        # Fast path (cached session + one SQL statement): see app/services/chunk_upload.py.
+        user_id = chunk_upload.candidate_id_for(session_token(request))
+        result = chunk_upload.append(interview_id, user_id, seq, bytes(data))
+        if chunk_upload.is_live(interview_id):
+            interview_service.follow_recording_if_live(interview_id)
+        return result
 
     next_seq, size = await run_in_threadpool(store)
     return ChunkAck(next_seq=next_seq, bytes_received=size)

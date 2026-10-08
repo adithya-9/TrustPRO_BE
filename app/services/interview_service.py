@@ -39,6 +39,13 @@ def _follow_recording(interview: Interview) -> None:
     registry.ensure(interview.interview_id, int(get_settings().analysis_sample_interval_s * 1000))
 
 
+def follow_recording_if_live(interview_id: int) -> None:
+    """Make sure the live analysis follows this recording (after a server restart, too)."""
+    from app.pipeline.live import registry
+
+    registry.ensure(interview_id, int(get_settings().analysis_sample_interval_s * 1000))
+
+
 def get_owned_interview(db: Session, user: User, interview_id: int) -> Interview:
     interview = db.get(Interview, interview_id)
     if interview is None:
@@ -155,6 +162,9 @@ def end_interview(db: Session, interview: Interview, duration_ms: int, chunk_cou
     if chunk_count != interview.recording_chunks:
         raise Conflict("Some of the recording is still uploading.", code="RECORDING_INCOMPLETE",
                        details={"received_chunks": interview.recording_chunks, "expected_chunks": chunk_count})
+    from app.services import chunk_upload
+
+    chunk_upload.forget_upload(interview.interview_id)   # the next state comes from the database
     if interview.status == InterviewStatus.LIVE:
         interview.status = InterviewStatus.ENDED
         interview.ended_at = utcnow()

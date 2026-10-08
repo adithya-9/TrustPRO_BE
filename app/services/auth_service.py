@@ -91,6 +91,9 @@ def resolve_session(db: Session, token: str | None) -> User:
 def revoke_session(db: Session, token: str | None) -> None:
     if not token:
         return
+    from app.services.chunk_upload import forget_session
+
+    forget_session(token)
     session = db.scalar(select(UserSession).where(UserSession.token_hash == security.hash_token(token)))
     if session and session.revoked_at is None:
         session.revoked_at = utcnow()
